@@ -18,9 +18,11 @@ from sklearn.metrics import roc_auc_score
 from scipy.ndimage import gaussian_filter
 from collections import OrderedDict
 import warnings
+
 warnings.filterwarnings("ignore")
 use_cuda = torch.cuda.is_available()
 device = torch.device('cuda' if use_cuda else 'cpu')
+
 
 def main():
     parser = argparse.ArgumentParser(description='Registration based Few-Shot Anomaly Detection')
@@ -56,7 +58,7 @@ def main():
     if not os.path.exists(args.save_model_dir):
         os.makedirs(args.save_model_dir)
 
-    log = open(os.path.join(args.save_dir, 'log_{}_{}.txt'.format(str(args.shot),args.obj)), 'w')
+    log = open(os.path.join(args.save_dir, 'log_{}_{}.txt'.format(str(args.shot), args.obj)), 'w')
     state = {k: v for k, v in args._get_kwargs()}
     print_log(state, log)
 
@@ -76,9 +78,11 @@ def main():
 
     print('Loading Datasets')
     kwargs = {'num_workers': 4, 'pin_memory': True} if use_cuda else {}
-    train_dataset = FSAD_Dataset_train(args.data_path, class_name=args.obj, is_train=True, resize=args.img_size, shot=args.shot, batch=args.batch_size)
+    train_dataset = FSAD_Dataset_train(args.data_path, class_name=args.obj, is_train=True, resize=args.img_size,
+                                       shot=args.shot, batch=args.batch_size)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, **kwargs)
-    test_dataset = FSAD_Dataset_test(args.data_path, class_name=args.obj, is_train=False, resize=args.img_size, shot=args.shot)
+    test_dataset = FSAD_Dataset_test(args.data_path, class_name=args.obj, is_train=False, resize=args.img_size,
+                                     shot=args.shot)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, **kwargs)
 
     # start training
@@ -123,27 +127,28 @@ def main():
 
             image_auc_list = np.array(image_auc_list)
             pixel_auc_list = np.array(pixel_auc_list)
-            mean_img_auc = np.mean(image_auc_list, axis = 0)
-            mean_pixel_auc = np.mean(pixel_auc_list, axis = 0)
+            mean_img_auc = np.mean(image_auc_list, axis=0)
+            mean_pixel_auc = np.mean(pixel_auc_list, axis=0)
 
             if mean_img_auc + mean_pixel_auc > per_pixel_rocauc_old + img_roc_auc_old:
-                state = {'STN': STN.state_dict(), 'ENC': ENC.state_dict(), 'PRED':PRED.state_dict()}
+                state = {'STN': STN.state_dict(), 'ENC': ENC.state_dict(), 'PRED': PRED.state_dict()}
                 torch.save(state, save_name)
                 per_pixel_rocauc_old = mean_pixel_auc
                 img_roc_auc_old = mean_img_auc
-            print('Img-level AUC:',img_roc_auc_old)
+            print('Img-level AUC:', img_roc_auc_old)
             print('Pixel-level AUC:', per_pixel_rocauc_old)
 
             print_log(('Test Epoch(img, pixel): {} ({:.6f}, {:.6f}) best: ({:.3f}, {:.3f})'
-            .format(epoch-1, mean_img_auc, mean_pixel_auc, img_roc_auc_old, per_pixel_rocauc_old)), log)
+                       .format(epoch - 1, mean_img_auc, mean_pixel_auc, img_roc_auc_old, per_pixel_rocauc_old)), log)
 
         epoch_time.update(time.time() - start_time)
         start_time = time.time()
         train(models, epoch, train_loader, optimizers, log)
         train_dataset.shuffle_dataset()
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, **kwargs)
-        
+
     log.close()
+
 
 def train(models, epoch, train_loader, optimizers, log):
     STN = models[0]
@@ -168,7 +173,7 @@ def train(models, epoch, train_loader, optimizers, log):
         query_img = query_img.squeeze(0).to(device)
         query_feat = STN(query_img)
         support_img = support_img_list.squeeze(0).to(device)
-        B,K,C,H,W = support_img.shape
+        B, K, C, H, W = support_img.shape
 
         support_img = support_img.view(B * K, C, H, W)
         support_feat = STN(support_img)
@@ -182,7 +187,7 @@ def train(models, epoch, train_loader, optimizers, log):
         z2 = ENC(support_feat)
         p1 = PRED(z1)
         p2 = PRED(z2)
-        total_loss = CosLoss(p1,z2, Mean=True)/2 + CosLoss(p2,z1, Mean=True)/2
+        total_loss = CosLoss(p1, z2, Mean=True) / 2 + CosLoss(p2, z1, Mean=True) / 2
         total_losses.update(total_loss.item(), query_img.size(0))
 
         total_loss.backward()
@@ -313,6 +318,7 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
         score_map[i] = gaussian_filter(score_map[i], sigma=4)
 
     return score_map, query_imgs, gt_list, mask_list
+
 
 def adjust_learning_rate(optimizers, init_lrs, epoch, args):
     """Decay the learning rate based on schedule"""
