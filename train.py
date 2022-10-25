@@ -18,6 +18,7 @@ from sklearn.metrics import roc_auc_score
 from scipy.ndimage import gaussian_filter
 from collections import OrderedDict
 import warnings
+import sys
 
 warnings.filterwarnings("ignore")
 use_cuda = torch.cuda.is_available()
@@ -50,15 +51,18 @@ def main():
         torch.cuda.manual_seed_all(args.seed)
 
     args.prefix = time_file_str()
+    # 2022-10-25-9328
     args.save_dir = './logs_mvtec/'
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
     args.save_model_dir = './logs_mvtec/' + args.stn_mode + '/' + str(args.shot) + '/' + args.obj + '/'
+    # ./logs_mvtec/rotation_scale/2/bottle/
     if not os.path.exists(args.save_model_dir):
         os.makedirs(args.save_model_dir)
 
     log = open(os.path.join(args.save_dir, 'log_{}_{}.txt'.format(str(args.shot), args.obj)), 'w')
+    # ./logs_mvtec/log_2_bottle.txt
     state = {k: v for k, v in args._get_kwargs()}
     print_log(state, log)
 
@@ -66,8 +70,6 @@ def main():
     STN = stn_net(args).to(device)
     ENC = Encoder().to(device)
     PRED = Predictor().to(device)
-
-    print(STN)
 
     STN_optimizer = optim.SGD(STN.parameters(), lr=args.lr, momentum=args.momentum)
     ENC_optimizer = optim.SGD(ENC.parameters(), lr=args.lr, momentum=args.momentum)
@@ -78,12 +80,14 @@ def main():
 
     print('Loading Datasets')
     kwargs = {'num_workers': 4, 'pin_memory': True} if use_cuda else {}
+    # args.data_path ./MVTec/
     train_dataset = FSAD_Dataset_train(args.data_path, class_name=args.obj, is_train=True, resize=args.img_size,
                                        shot=args.shot, batch=args.batch_size)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, **kwargs)
     test_dataset = FSAD_Dataset_test(args.data_path, class_name=args.obj, is_train=False, resize=args.img_size,
                                      shot=args.shot)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, **kwargs)
+    ###############################################################################
 
     # start training
     save_name = os.path.join(args.save_model_dir, '{}_{}_{}_model.pt'.format(args.obj, args.shot, args.stn_mode))
@@ -330,4 +334,3 @@ def adjust_learning_rate(optimizers, init_lrs, epoch, args):
 
 if __name__ == '__main__':
     main()
-    a = 1
