@@ -20,9 +20,11 @@ from collections import OrderedDict
 import warnings
 import sys
 
+import my_func
+
 warnings.filterwarnings("ignore")
 use_cuda = torch.cuda.is_available()
-device = torch.device('cuda' if use_cuda else 'cpu')
+device = torch.device('cuda:0' if use_cuda else 'cpu')
 
 
 def main():
@@ -87,7 +89,6 @@ def main():
     test_dataset = FSAD_Dataset_test(args.data_path, class_name=args.obj, is_train=False, resize=args.img_size,
                                      shot=args.shot)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, **kwargs)
-    ###############################################################################
 
     # start training
     save_name = os.path.join(args.save_model_dir, '{}_{}_{}_model.pt'.format(args.obj, args.shot, args.stn_mode))
@@ -261,8 +262,11 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
     mean = torch.mean(embedding_vectors, dim=0)
     cov = torch.zeros(C, C, H * W).to(device)
     I = torch.eye(C).to(device)
+    print(I.shape,embedding_vectors.shape,cov.shape)
     for i in range(H * W):
-        cov[:, :, i] = torch.cov(embedding_vectors[:, :, i].T) + 0.01 * I
+        # cov[:, :, i] = torch.cov(embedding_vectors[:, :, i].T) + 0.01 * I
+        # torch.cov是torch的高版本中才有的，表示计算协方差矩阵
+        cov[:, :, i] = my_func.cov(embedding_vectors[:, :, i].T) + 0.01 * I
     train_outputs = [mean, cov]
 
     # torch version
