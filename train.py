@@ -19,6 +19,7 @@ from scipy.ndimage import gaussian_filter
 from collections import OrderedDict
 import warnings
 import sys
+import PIL.Image as Image
 
 import my_func
 
@@ -64,6 +65,7 @@ def main():
         os.makedirs(args.save_model_dir)
 
     log = open(os.path.join(args.save_dir, 'log_{}_{}.txt'.format(str(args.shot), args.obj)), 'w')
+    # print('log', args.save_dir, 'log_{}_{}.txt'.format(str(args.shot), args.obj)) log ./logs_mvtec/ log_2_bottle.txt
     # ./logs_mvtec/log_2_bottle.txt
     state = {k: v for k, v in args._get_kwargs()}
     print_log(state, log)
@@ -98,6 +100,8 @@ def main():
     per_pixel_rocauc_old = 0.0
     print('Loading Fixed Support Set')
     fixed_fewshot_list = torch.load(f'./support_set/{args.obj}/{args.shot}_{args.inferences}.pt')
+    # print(f'./support_set/{args.obj}/{args.shot}_{args.inferences}.pt') ./support_set/bottle/2_10.pt
+    # fixed_fexshot_list [10, 2, 3, 224, 224]
     print_log((f'---------{args.stn_mode}--------'), log)
 
     for epoch in range(1, args.epochs + 1):
@@ -105,7 +109,6 @@ def main():
         need_hour, need_mins, need_secs = convert_secs2time(epoch_time.avg * (args.epochs - epoch))
         need_time = '[Need: {:02d}:{:02d}:{:02d}]'.format(need_hour, need_mins, need_secs)
         print_log(' {:3d}/{:3d} ----- [{:s}] {:s}'.format(epoch, args.epochs, time_string(), need_time), log)
-
         if epoch <= args.epochs:
             image_auc_list = []
             pixel_auc_list = []
@@ -213,20 +216,26 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
     ENC.eval()
     PRED.eval()
 
+
     train_outputs = OrderedDict([('layer1', []), ('layer2', []), ('layer3', [])])
     test_outputs = OrderedDict([('layer1', []), ('layer2', []), ('layer3', [])])
 
     support_img = fixed_fewshot_list[cur_epoch]
+    # print(support_img.shape) [2, 3, 244, 244]
     augment_support_img = support_img
+    # print(augment_support_img.shape) [2, 3, 244, 244]
+
     # rotate img with small angle
     for angle in [-np.pi / 4, -3 * np.pi / 16, -np.pi / 8, -np.pi / 16, np.pi / 16, np.pi / 8, 3 * np.pi / 16,
                   np.pi / 4]:
         rotate_img = rot_img(support_img, angle)
         augment_support_img = torch.cat([augment_support_img, rotate_img], dim=0)
+    # print(augment_support_img.shape) [18, 3, 244, 244]
     # translate img
     for a, b in [(0.2, 0.2), (-0.2, 0.2), (-0.2, -0.2), (0.2, -0.2), (0.1, 0.1), (-0.1, 0.1), (-0.1, -0.1),
                  (0.1, -0.1)]:
         trans_img = translation_img(support_img, a, b)
+        # translation 用于将图片右下角拼接到左上角
         augment_support_img = torch.cat([augment_support_img, trans_img], dim=0)
     # hflip img
     flipped_img = hflip_img(support_img)
@@ -244,6 +253,7 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
     with torch.no_grad():
         support_feat = STN(augment_support_img.to(device))
     support_feat = torch.mean(support_feat, dim=0, keepdim=True)
+
     train_outputs['layer1'].append(STN.stn1_output)
     train_outputs['layer2'].append(STN.stn2_output)
     train_outputs['layer3'].append(STN.stn3_output)
@@ -262,7 +272,7 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
     mean = torch.mean(embedding_vectors, dim=0)
     cov = torch.zeros(C, C, H * W).to(device)
     I = torch.eye(C).to(device)
-    print(I.shape,embedding_vectors.shape,cov.shape)
+    print(I.shape, embedding_vectors.shape, cov.shape)
     for i in range(H * W):
         # cov[:, :, i] = torch.cov(embedding_vectors[:, :, i].T) + 0.01 * I
         # torch.cov是torch的高版本中才有的，表示计算协方差矩阵
@@ -334,6 +344,13 @@ def adjust_learning_rate(optimizers, init_lrs, epoch, args):
         cur_lr = init_lrs[i] * 0.5 * (1. + math.cos(math.pi * epoch / args.epochs))
         for param_group in optimizers[i].param_groups:
             param_group['lr'] = cur_lr
+
+
+def show_tensor(tensor_img: torch.tensor):
+    array_img = tensor_img.permute(1, 2, 0).numpy()
+    array_img = (array_img * 255.).astype(np.uint8)
+    img = Image.fromarray(array_img)
+    img.show()
 
 
 if __name__ == '__main__':

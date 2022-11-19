@@ -45,6 +45,7 @@ def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
+
 class STNModule(nn.Module):
     def __init__(self, in_num, block_index, args):
         super(STNModule, self).__init__()
@@ -184,6 +185,7 @@ class BasicBlock(nn.Module):
         self.stride = stride
 
     def forward(self, x: Tensor) -> Tensor:
+        # x [B, C, 244, 244]
         identity = x
 
         out = self.conv1(x)
@@ -199,6 +201,7 @@ class BasicBlock(nn.Module):
         out += identity
         out = self.relu(out)
 
+        # out [B, C, 244, 244]
         return out
 
 
@@ -253,7 +256,8 @@ class ResNet(nn.Module):
         x = self.layer1(x)
         x, theta1 = self.stn1(x)
         tmp = np.tile(np.array([0, 0, 1]), (x.shape[0], 1, 1)).astype(np.float32)
-        fixthea1 = torch.from_numpy(np.linalg.inv(np.concatenate((theta1.detach().cpu().numpy(), tmp), axis=1))[:,:-1,:]).cuda()
+        fixthea1 = torch.from_numpy(
+            np.linalg.inv(np.concatenate((theta1.detach().cpu().numpy(), tmp), axis=1))[:, :-1, :]).cuda()
 
         self.stn1_output = self._fixstn(x.detach(), fixthea1)
         # after layer1 shape:  torch.Size([32, 64, 56, 56])
@@ -261,14 +265,16 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x, theta2 = self.stn2(x)
         tmp = np.tile(np.array([0, 0, 1]), (x.shape[0], 1, 1)).astype(np.float32)
-        fixthea2 = torch.from_numpy(np.linalg.inv(np.concatenate((theta2.detach().cpu().numpy(), tmp), axis=1))[:,:-1,:]).cuda()
+        fixthea2 = torch.from_numpy(
+            np.linalg.inv(np.concatenate((theta2.detach().cpu().numpy(), tmp), axis=1))[:, :-1, :]).cuda()
         self.stn2_output = self._fixstn(self._fixstn(x.detach(), fixthea2), fixthea1)
         # after layer2 shape:  torch.Size([32, 128, 28, 28])
 
         x = self.layer3(x)
         out, theta3 = self.stn3(x)
         tmp = np.tile(np.array([0, 0, 1]), (x.shape[0], 1, 1)).astype(np.float32)
-        fixthea3 = torch.from_numpy(np.linalg.inv(np.concatenate((theta3.detach().cpu().numpy(), tmp), axis=1))[:,:-1,:]).cuda()
+        fixthea3 = torch.from_numpy(
+            np.linalg.inv(np.concatenate((theta3.detach().cpu().numpy(), tmp), axis=1))[:, :-1, :]).cuda()
         self.stn3_output = self._fixstn(self._fixstn(self._fixstn(out.detach(), fixthea3), fixthea2), fixthea1)
         # after layer3 shape:  torch.Size([32, 256, 14, 14])
 
@@ -284,3 +290,10 @@ def stn_net(args, pretrained=True, **kwargs):
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet18']), strict=False)
     return model
+
+
+if __name__ == '__main__':
+    x = torch.randn([1, 3, 224, 224])
+    net = BasicBlock(3,3)
+    y = net(x)
+    print(y.shape)

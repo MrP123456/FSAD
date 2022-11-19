@@ -6,11 +6,13 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+import sys
 
 CLASS_NAMES = [
     'bottle', 'cable', 'capsule', 'carpet', 'grid', 'hazelnut', 'leather', 'metal_nut', 'pill', 'screw', 'tile',
     'toothbrush', 'transistor', 'wood', 'zipper'
 ]
+
 
 class FSAD_Dataset_train(Dataset):
     def __init__(self,
@@ -45,36 +47,40 @@ class FSAD_Dataset_train(Dataset):
 
         for i in range(len(query_list)):
             image = Image.open(query_list[i]).convert('RGB')
-            image = self.transform_x(image) #image_shape torch.Size([3, 224, 224])
-            image = image.unsqueeze(dim=0) #image_shape torch.Size([1, 3, 224, 224])
+            image = self.transform_x(image)  # image_shape torch.Size([3, 224, 224])
+            image = image.unsqueeze(dim=0)  # image_shape torch.Size([1, 3, 224, 224])
             if query_img is None:
                 query_img = image
             else:
-                query_img = torch.cat([query_img, image],dim=0)
+                query_img = torch.cat([query_img, image], dim=0)
+            # [B, 3, 244, 244]
 
             for k in range(self.shot):
                 image = Image.open(support_list[i][k]).convert('RGB')
                 image = self.transform_x(image)
-                image = image.unsqueeze(dim=0) #image_shape torch.Size([1, 3, 224, 224])
+                image = image.unsqueeze(dim=0)  # image_shape torch.Size([1, 3, 224, 224])
                 if support_sub_img is None:
                     support_sub_img = image
                 else:
                     support_sub_img = torch.cat([support_sub_img, image], dim=0)
 
             support_sub_img = support_sub_img.unsqueeze(dim=0)
+            # [1, 2, 3, 244, 244]
             if support_img is None:
                 support_img = support_sub_img
             else:
                 support_img = torch.cat([support_img, support_sub_img], dim=0)
 
             support_sub_img = None
+            # [B, 2, 3, 244, 244]
 
         mask = torch.zeros([self.batch, self.resize, self.resize])
+        # [B, 3, 244, 244], [B, 2, 3, 244, 244], [B, 256, 256]
         return query_img, support_img, mask
 
     def __len__(self):
         return len(self.query_dir)
-    
+
     def shuffle_dataset(self):
         phase = 'train' if self.is_train else 'test'
 
@@ -107,7 +113,7 @@ class FSAD_Dataset_train(Dataset):
                             random_choose = random.randint(0, (len(data_img[class_name_one]) - 1))
                         support_dir_one.append(data_img[class_name_one][random_choose])
                     support_sub_dir.append(support_dir_one)
-                
+
                 query_dir.append(query_sub_dir)
                 support_dir.append(support_sub_dir)
 
@@ -148,11 +154,14 @@ class FSAD_Dataset_train(Dataset):
                             random_choose = random.randint(0, (len(data_img[class_name_one]) - 1))
                         support_dir_one.append(data_img[class_name_one][random_choose])
                     support_sub_dir.append(support_dir_one)
-                
+
                 query_dir.append(query_sub_dir)
                 support_dir.append(support_sub_dir)
 
         assert len(query_dir) == len(support_dir), 'number of query_dir and support_dir should be same'
+        # query_dir [num/batch,batch] support_dir [num/batch,batch,2]
+        # print(query_dir[0][0]) ./MVTec/cable\train\good\067.png
+        # print(support_dir[0][0][0]) ./MVTec/cable\train\good\011.png
         return query_dir, support_dir
 
 
@@ -200,6 +209,7 @@ class FSAD_Dataset_test(Dataset):
             mask = Image.open(mask_one)
             mask = self.transform_mask(mask)
             y = 1
+        #
         return query_img, support_img, mask, y
 
     def __len__(self):
@@ -220,11 +230,13 @@ class FSAD_Dataset_test(Dataset):
                 data_img[img_type].append(img_dir_one)
         img_dir_train = os.path.join(self.dataset_path, self.class_name, 'train', 'good')
         img_num = sorted(os.listdir(img_dir_train))
+        # print(data_img['good'][0]) ./MVTec/bottle\test\good\000.png
 
         data_train = []
         for img_one in img_num:
             img_dir_one = os.path.join(img_dir_train, img_one)
             data_train.append(img_dir_one)
+        # print(data_train[0]) ./MVTec/bottle\train\good\000.png
 
         gt_dir = os.path.join(self.dataset_path, self.class_name, 'ground_truth')
         query_dir, support_dir, query_mask = [], [], []
@@ -242,4 +254,8 @@ class FSAD_Dataset_test(Dataset):
 
         assert len(query_dir) == len(support_dir) == len(
             query_mask), 'number of query_dir and support_dir should be same'
+        # print(query_dir[0]) ./MVTec/bottle\test\broken_large\000.png
+        # print(support_dir[0][0]) ./MVTec/bottle\train\good\012.png
+        # print(query_mask[0]) ./MVTec/bottle\ground_truth\broken_large\000_mask.png
+        # [N] [N] {N, 2]
         return query_dir, support_dir, query_mask
