@@ -1,3 +1,3 @@
-{'batch_size': 2, 'data_path': './MVTec/', 'data_type': 'mvtec', 'epochs': 50, 'img_size': 224, 'inferences': 10, 'input_channel': 3, 'lr': 0.0001, 'momentum': 0.9, 'obj': 'bottle', 'prefix': '2022-11-28-3272', 'save_dir': './logs_mvtec/', 'save_model_dir': './logs_mvtec/rotation_scale/2/bottle/', 'seed': 668, 'shot': 2, 'stn_mode': 'rotation_scale'}
+{'batch_size': 2, 'data_path': './MVTec/', 'data_type': 'mvtec', 'epochs': 50, 'img_size': 224, 'inferences': 10, 'input_channel': 3, 'lr': 0.0001, 'momentum': 0.9, 'obj': 'bottle', 'prefix': '2022-11-28-8640', 'save_dir': './logs_mvtec/', 'save_model_dir': './logs_mvtec/rotation_scale/2/bottle/', 'seed': 668, 'shot': 2, 'stn_mode': 'rotation_scale'}
 ---------rotation_scale--------
-   1/ 50 ----- [[2022-11-28 16:05:10]] [Need: 00:00:00]
+   1/ 50 ----- [[2022-11-28 16:43:30]] [Need: 00:00:00]

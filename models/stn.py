@@ -99,7 +99,6 @@ class STNModule(nn.Module):
         if mode == 'affine':
             theta1 = theta.view(batch_size, 2, 3)
         else:
-            print(x.device)
             theta1 = Variable(torch.zeros([batch_size, 2, 3], dtype=torch.float32, device=x.get_device()),
                               requires_grad=True)
             theta1 = theta1 + 0

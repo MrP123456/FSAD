@@ -83,14 +83,15 @@ def main():
     init_lrs = [args.lr, args.lr, args.lr]
 
     print('Loading Datasets')
-    kwargs = {'num_workers': 4, 'pin_memory': True} if use_cuda else {}
+    kwargs = {'num_workers': 0, 'pin_memory': True} if use_cuda else {}
+
     # args.data_path ./MVTec/
     train_dataset = FSAD_Dataset_train(args.data_path, class_name=args.obj, is_train=True, resize=args.img_size,
                                        shot=args.shot, batch=args.batch_size)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, **kwargs)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
     test_dataset = FSAD_Dataset_test(args.data_path, class_name=args.obj, is_train=False, resize=args.img_size,
                                      shot=args.shot)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, **kwargs)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, **kwargs)
 
     # start training
     save_name = os.path.join(args.save_model_dir, '{}_{}_{}_model.pt'.format(args.obj, args.shot, args.stn_mode))
@@ -263,7 +264,6 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
     # print(STN.stn3_output.shape) [44, 256, 14, 14]
 
     for k, v in train_outputs.items():
-        print(k,v[0].shape)
         train_outputs[k] = torch.cat(v, 0)
 
     # Embedding concat
@@ -278,7 +278,7 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
     mean = torch.mean(embedding_vectors, dim=0)
     cov = torch.zeros(C, C, H * W).to(device)
     I = torch.eye(C).to(device)
-    print(I.shape, embedding_vectors.shape, cov.shape)
+    # print(I.shape, embedding_vectors.shape, cov.shape) [448, 448],[44, 448, 3136],[448, 448, 3136]
     for i in range(H * W):
         # cov[:, :, i] = torch.cov(embedding_vectors[:, :, i].T) + 0.01 * I
         # torch.cov是torch的高版本中才有的，表示计算协方差矩阵
