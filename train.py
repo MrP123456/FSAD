@@ -361,3 +361,4 @@ def show_tensor(tensor_img: torch.tensor):
 
 if __name__ == '__main__':
     main()
+    print(1)
