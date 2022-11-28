@@ -34,7 +34,7 @@ def main():
     parser.add_argument('--data_type', type=str, default='mvtec')
     parser.add_argument('--data_path', type=str, default='./MVTec/')
     parser.add_argument('--epochs', type=int, default=50, help='maximum training epochs')
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--batch_size', type=int, default=2)
     parser.add_argument('--img_size', type=int, default=224)
     parser.add_argument('--lr', type=float, default=0.0001, help='learning rate of others in SGD')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum of SGD')
@@ -213,9 +213,9 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
     PRED = models[2]
 
     STN.eval()
+    # STN指包括卷积和stn的前部分
     ENC.eval()
     PRED.eval()
-
 
     train_outputs = OrderedDict([('layer1', []), ('layer2', []), ('layer3', [])])
     test_outputs = OrderedDict([('layer1', []), ('layer2', []), ('layer3', [])])
@@ -253,12 +253,17 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
     with torch.no_grad():
         support_feat = STN(augment_support_img.to(device))
     support_feat = torch.mean(support_feat, dim=0, keepdim=True)
+    # print(support_feat.shape)  [1, 256, 14, 14]
 
     train_outputs['layer1'].append(STN.stn1_output)
     train_outputs['layer2'].append(STN.stn2_output)
     train_outputs['layer3'].append(STN.stn3_output)
+    # print(STN.stn1_output.shape) [44, 64, 56, 56]
+    # print(STN.stn2_output.shape) [44, 128, 28, 28]
+    # print(STN.stn3_output.shape) [44, 256, 14, 14]
 
     for k, v in train_outputs.items():
+        print(k,v[0].shape)
         train_outputs[k] = torch.cat(v, 0)
 
     # Embedding concat
@@ -268,6 +273,7 @@ def test(models, cur_epoch, fixed_fewshot_list, test_loader, **kwargs):
 
     # calculate multivariate Gaussian distribution
     B, C, H, W = embedding_vectors.size()
+    # print(embedding_vectors.shape)  [44, 448, 56, 56]
     embedding_vectors = embedding_vectors.view(B, C, H * W)
     mean = torch.mean(embedding_vectors, dim=0)
     cov = torch.zeros(C, C, H * W).to(device)
